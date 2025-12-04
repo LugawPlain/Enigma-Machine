@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enigma Machine Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Special+Elite&display=swap');
+
+        body {
+            background-color: #1a1a1a;
+            font-family: 'Courier Prime', monospace;
+            color: #d4d4d4;
+        }
+
+        .enigma-font {
+            font-family: 'Special Elite', cursive;
+        }
+
+        /* Lamp glow effect */
+        .lamp {
+            transition: all 0.1s ease;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+        }
+        .lamp.active {
+            background-color: #fbbf24;
+            color: #451a03;
+            box-shadow: 0 0 15px #fbbf24, inset 0 0 10px #fbbf24;
+            text-shadow: 0 0 5px white;
+            transform: scale(1.05);
+        }
+
+        /* Key press effect */
+        .key-btn:active {
+            transform: translateY(2px);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .wood-texture {
+            background-color: #3e2723;
+            background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.05) 25px, transparent 25px, transparent 50px, rgba(255,255,255,0.05) 50px, rgba(255,255,255,0.05) 75px, transparent 75px, transparent 100px);
+        }
+        
+        .metal-texture {
+            background-color: #262626;
+            background-image: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 60%);
+        }
+
+        /* Scrollbar for history */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #262626; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #555; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #777; 
+        }
+
+        input[type="number"]::-webkit-inner-spin-button, 
+        input[type="number"]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- Increased max-width to accommodate side panel -->
+    <div class="max-w-7xl w-full bg-neutral-800 rounded-xl shadow-2xl overflow-hidden border border-neutral-700 grid grid-cols-1 lg:grid-cols-3">
+        
+        <!-- Left Column: The Machine (Span 2) -->
+        <div class="lg:col-span-2 border-r border-neutral-700 flex flex-col">
+            <!-- Header -->
+            <div class="bg-neutral-900 p-4 border-b border-neutral-700 flex justify-between items-center">
+                <h1 class="text-2xl font-bold tracking-wider text-amber-500 enigma-font">ENIGMA I</h1>
+                <div class="text-xs text-neutral-500 font-mono hidden sm:block">Wehrmacht Enigma I (Reflector B)</div>
+            </div>
+
+            <div class="p-6 space-y-8 flex-1">
+
+                <!-- Top Section: Rotors -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Rotor Configuration -->
+                    <div class="bg-neutral-900/50 p-4 rounded-lg border border-neutral-700">
+                        <h2 class="text-amber-500 mb-3 text-sm uppercase tracking-widest border-b border-neutral-700 pb-1">Internal Mechanism</h2>
+                        
+                        <div class="flex justify-between items-center text-xs text-neutral-400 mb-2 px-2">
+                            <span>Slot</span>
+                            <span>Rotor</span>
+                            <span>Ring</span>
+                            <span>Position</span>
+                        </div>
+
+                        <!-- Rotor Slots -->
+                        <div class="space-y-3" id="rotor-settings">
+                            <!-- Left Rotor -->
+                            <div class="flex items-center gap-2">
+                                <span class="w-8 text-neutral-500 font-bold">L</span>
+                                <select id="rotor-type-0" class="bg-neutral-800 border border-neutral-600 rounded px-2 py-1 text-amber-100 focus:outline-none focus:border-amber-500 text-sm">
+                                    <option value="I" selected>I</option>
+                                    <option value="II">II</option>
+                                    <option value="III">III</option>
+                                </select>
+                                <input type="number" id="ring-setting-0" min="1" max="26" value="1" class="w-12 bg-neutral-800 border border-neutral-600 rounded px-2 py-1 text-center focus:outline-none focus:border-amber-500 text-sm" title="Ring Setting (1-26)">
+                                <div class="relative flex-1">
+                                    <button onclick="adjustRotor(0, 1)" class="absolute -top-3 left-1/2 -translate-x-1/2 text-neutral-500 hover:text-amber-500 text-xs">▲</button>
+                                    <div id="rotor-disp-0" class="bg-neutral-200 text-black font-bold text-center py-1 rounded shadow-inner text-lg font-mono">A</div>
+                                    <button onclick="adjustRotor(0, -1)" class="absolute -bottom-3 left-1/2 -translate-x-1/2 text-neutral-500 hover:text-amber-500 text-xs">▼</button>
+                                </div>
+                            </div>
+
+                            <!-- Middle Rotor -->
+                            <div class="flex items-center gap-2">
+                                <span class="w-8 text-neutral-500 font-bold">M</span>
+                                <select id="rotor-type-1" class="bg-neutral-800 border border-neutral-600 rounded px-2 py-1 text-amber-100 focus:outline-none focus:border-amber-500 text-sm">
+                                    <option value="I">I</option>
+                                    <option value="II" selected>II</option>
+                                    <option value="III">III</option>
+                                </select>
+                                <input type="number" id="ring-setting-1" min="1" max="26" value="1" class="w-12 bg-neutral-800 border border-neutral-600 rounded px-2 py-1 text-center focus:outline-none focus:border-amber-500 text-sm" title="Ring Setting (1-26)">
+                                <div class="relative flex-1">
+                                    <button onclick="adjustRotor(1, 1)" class="absolute -top-3 left-1/2 -translate-x-1/2 text-neutral-500 hover:text-amber-500 text-xs">▲</button>
+                                    <div id="rotor-disp-1" class="bg-neutral-200 text-black font-bold text-center py-1 rounded shadow-inner text-lg font-mono">A</div>
+                                    <button onclick="adjustRotor(1, -1)" class="absolute -bottom-3 left-1/2 -translate-x-1/2 text-neutral-500 hover:text-amber-500 text-xs">▼</button>
+                                </div>
+                            </div>
+
+                            <!-- Right Rotor -->
+                            <div class="flex items-center gap-2">
+                                <span class="w-8 text-neutral-500 font-bold">R</span>
+                                <select id="rotor-type-2" class="bg-neutral-800 border border-neutral-600 rounded px-2 py-1 text-amber-100 focus:outline-none focus:border-amber-500 text-sm">
+                                    <option value="I">I</option>
+                                    <option value="II">II</option>
+                                    <option value="III" selected>III</option>
+                                </select>
+                                <input type="number" id="ring-setting-2" min="1" max="26" value="1" class="w-12 bg-neutral-800 border border-neutral-600 rounded px-2 py-1 text-center focus:outline-none focus:border-amber-500 text-sm" title="Ring Setting (1-26)">
+                                <div class="relative flex-1">
+                                    <button onclick="adjustRotor(2, 1)" class="absolute -top-3 left-1/2 -translate-x-1/2 text-neutral-500 hover:text-amber-500 text-xs">▲</button>
+                                    <div id="rotor-disp-2" class="bg-neutral-200 text-black font-bold text-center py-1 rounded shadow-inner text-lg font-mono">A</div>
+                                    <button onclick="adjustRotor(2, -1)" class="absolute -bottom-3 left-1/2 -translate-x-1/2 text-neutral-500 hover:text-amber-500 text-xs">▼</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Plugboard -->
+                    <div class="bg-neutral-900/50 p-4 rounded-lg border border-neutral-700 flex flex-col">
+                        <h2 class="text-amber-500 mb-3 text-sm uppercase tracking-widest border-b border-neutral-700 pb-1">Plugboard</h2>
+                        <p class="text-xs text-neutral-400 mb-2">Connect pairs (e.g. AB CD)</p>
+                        <input type="text" id="plugboard-input" 
+                            class="bg-neutral-800 border border-neutral-600 rounded p-2 text-amber-100 font-mono uppercase tracking-widest focus:outline-none focus:border-amber-500 w-full text-sm"
+                            placeholder="AB CD EF..." oninput="validatePlugboard(this)">
+                        <div id="plugboard-error" class="text-red-500 text-xs mt-1 h-4 truncate"></div>
+                        
+                        <div class="mt-auto pt-4 flex gap-2">
+                            <button onclick="resetMachine()" class="flex-1 bg-red-900/50 hover:bg-red-900 text-red-200 py-2 rounded border border-red-800 transition text-xs font-bold uppercase">Reset Rotors</button>
+                            <button onclick="clearText()" class="flex-1 bg-neutral-700 hover:bg-neutral-600 text-white py-2 rounded border border-neutral-600 transition text-xs font-bold uppercase">Clear</button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Lampboard (Output) -->
+                <div class="wood-texture p-4 md:p-6 rounded-xl shadow-inner border-4 border-neutral-900 relative">
+                    <div class="absolute top-2 left-0 w-full text-center opacity-30 pointer-events-none">
+                        <span class="text-3xl md:text-4xl font-bold text-black tracking-widest">ENIGMA</span>
+                    </div>
+                    <!-- Lamps Grid -->
+                    <div class="grid gap-1 md:gap-2 justify-center mb-2" style="grid-template-columns: repeat(10, minmax(0, 1fr));">
+                        <div id="lamp-Q" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">Q</div>
+                        <div id="lamp-W" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">W</div>
+                        <div id="lamp-E" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">E</div>
+                        <div id="lamp-R" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">R</div>
+                        <div id="lamp-T" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">T</div>
+                        <div id="lamp-Z" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">Z</div>
+                        <div id="lamp-U" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">U</div>
+                        <div id="lamp-I" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">I</div>
+                        <div id="lamp-O" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">O</div>
+                        <div id="lamp-P" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">P</div>
+                    </div>
+                    <div class="grid gap-1 md:gap-2 justify-center mb-2 px-4" style="grid-template-columns: repeat(9, minmax(0, 1fr));">
+                        <div id="lamp-A" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">A</div>
+                        <div id="lamp-S" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">S</div>
+                        <div id="lamp-D" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">D</div>
+                        <div id="lamp-F" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">F</div>
+                        <div id="lamp-G" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">G</div>
+                        <div id="lamp-H" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">H</div>
+                        <div id="lamp-J" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">J</div>
+                        <div id="lamp-K" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">K</div>
+                        <div id="lamp-L" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">L</div>
+                    </div>
+                    <div class="grid gap-1 md:gap-2 justify-center px-8" style="grid-template-columns: repeat(7, minmax(0, 1fr));">
+                        <div id="lamp-P" class="hidden"></div>
+                        <div id="lamp-Y" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">Y</div>
+                        <div id="lamp-X" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">X</div>
+                        <div id="lamp-C" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">C</div>
+                        <div id="lamp-V" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">V</div>
+                        <div id="lamp-B" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">B</div>
+                        <div id="lamp-N" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">N</div>
+                        <div id="lamp-M" class="lamp w-7 h-7 md:w-10 md:h-10 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center font-bold text-neutral-500 select-none text-sm md:text-base">M</div>
+                    </div>
+                </div>
+
+                <!-- Keyboard (Input) -->
+                <div class="metal-texture p-4 rounded-xl shadow-lg border-t-2 border-neutral-600">
+                    <div class="grid gap-1 md:gap-2 justify-center mb-2" style="grid-template-columns: repeat(10, minmax(0, 1fr));">
+                        <button onclick="handleInput('Q')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">Q</button>
+                        <button onclick="handleInput('W')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">W</button>
+                        <button onclick="handleInput('E')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">E</button>
+                        <button onclick="handleInput('R')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">R</button>
+                        <button onclick="handleInput('T')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">T</button>
+                        <button onclick="handleInput('Z')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">Z</button>
+                        <button onclick="handleInput('U')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">U</button>
+                        <button onclick="handleInput('I')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">I</button>
+                        <button onclick="handleInput('O')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">O</button>
+                        <button onclick="handleInput('P')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">P</button>
+                    </div>
+                    <div class="grid gap-1 md:gap-2 justify-center mb-2 px-4" style="grid-template-columns: repeat(9, minmax(0, 1fr));">
+                        <button onclick="handleInput('A')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">A</button>
+                        <button onclick="handleInput('S')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">S</button>
+                        <button onclick="handleInput('D')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">D</button>
+                        <button onclick="handleInput('F')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">F</button>
+                        <button onclick="handleInput('G')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">G</button>
+                        <button onclick="handleInput('H')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">H</button>
+                        <button onclick="handleInput('J')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">J</button>
+                        <button onclick="handleInput('K')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">K</button>
+                        <button onclick="handleInput('L')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">L</button>
+                    </div>
+                    <div class="grid gap-1 md:gap-2 justify-center px-8" style="grid-template-columns: repeat(7, minmax(0, 1fr));">
+                        <button onclick="handleInput('Y')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">Y</button>
+                        <button onclick="handleInput('X')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">X</button>
+                        <button onclick="handleInput('C')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">C</button>
+                        <button onclick="handleInput('V')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">V</button>
+                        <button onclick="handleInput('B')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">B</button>
+                        <button onclick="handleInput('N')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">N</button>
+                        <button onclick="handleInput('M')" class="key-btn h-10 md:h-12 rounded bg-neutral-200 text-black font-bold shadow-md hover:bg-white text-sm md:text-base">M</button>
+                    </div>
+                </div>
+
+                <!-- Output Log with Save Button -->
+                <div class="relative">
+                    <div class="bg-neutral-900 border border-neutral-700 rounded p-4 h-32 overflow-auto font-mono text-lg tracking-widest break-all" id="output-text">
+                        <span class="text-neutral-600 italic text-sm">// Encrypted output...</span>
+                    </div>
+                    <button onclick="saveMessage()" class="absolute bottom-2 right-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded shadow transition">
+                        SAVE & CLEAR (ENTER)
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Right Column: History -->
+        <div class="bg-neutral-800 flex flex-col h-full border-t lg:border-t-0 lg:border-l border-neutral-700">
+            <div class="bg-neutral-900 p-4 border-b border-neutral-700">
+                <h2 class="text-xl font-bold text-neutral-300 font-mono">MESSAGE LOG</h2>
+                <div class="text-xs text-neutral-500">History & Settings Snapshot</div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 space-y-4" id="history-container">
+                <div class="text-center text-neutral-600 text-sm mt-10 italic">
+                    No saved messages.<br>Type and press Enter to save.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONSTANTS ---
+        const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        
+        // Rotor Wirings (Input A->Z maps to string)
+        const ROTORS = {
+            I:   { wiring: "EKMFLGDQVZNTOWYHXUSPAIBRCJ", notch: "Q" },
+            II:  { wiring: "AJDKSIRUXBLHWTMCQGZNPYFVOE", notch: "E" },
+            III: { wiring: "BDFHJLCPRTXVZNYEIWGAKMUSQO", notch: "V" }
+        };
+        
+        const REFLECTOR_B = "YRUHQSLDPXNGOKMIEBFZCWVJAT";
+
+        // --- STATE ---
+        let currentRotors = [
+            { type: 'I',  pos: 0, ring: 0 }, // Left
+            { type: 'II', pos: 0, ring: 0 }, // Middle
+            { type: 'III',pos: 0, ring: 0 }  // Right
+        ];
+        
+        let plugboard = new Map();
+        let outputString = "";
+        
+        // State tracking for History
+        let isTypingMessage = false;
+        let startSettingsSnapshot = null;
+        let messageHistory = [];
+
+        // --- INITIALIZATION ---
+        function init() {
+            updateUI();
+            
+            // Physical Keyboard Listener
+            document.addEventListener('keydown', (e) => {
+                // Prevent typing into machine while editing settings
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+                if (e.repeat) return;
+                
+                if (e.key === 'Enter') {
+                    saveMessage();
+                    return;
+                }
+
+                const key = e.key.toUpperCase();
+                if (ALPHABET.includes(key)) {
+                    handleInput(key);
+                }
+            });
+
+            document.addEventListener('keyup', (e) => {
+                const lamps = document.querySelectorAll('.lamp');
+                lamps.forEach(l => l.classList.remove('active'));
+            });
+        }
+
+        // --- CORE LOGIC ---
+
+        function charToIndex(char) {
+            return char.charCodeAt(0) - 65;
+        }
+
+        function indexToChar(index) {
+            return String.fromCharCode(((index % 26 + 26) % 26) + 65);
+        }
+
+        function mod(n, m) {
+            return ((n % m) + m) % m;
+        }
+
+        function plugboardSwap(charIndex) {
+            const char = indexToChar(charIndex);
+            if (plugboard.has(char)) {
+                return charToIndex(plugboard.get(char));
+            }
+            return charIndex;
+        }
+
+        function rotorForward(rotorIndex, charIndex) {
+            const rotor = currentRotors[rotorIndex];
+            const data = ROTORS[rotor.type];
+            const offset = rotor.pos - rotor.ring;
+            let inputPos = mod(charIndex + offset, 26);
+            let internalWire = charToIndex(data.wiring[inputPos]);
+            let outputPos = mod(internalWire - offset, 26);
+            return outputPos;
+        }
+
+        function rotorInverse(rotorIndex, charIndex) {
+            const rotor = currentRotors[rotorIndex];
+            const data = ROTORS[rotor.type];
+            const offset = rotor.pos - rotor.ring;
+            let inputPos = mod(charIndex + offset, 26);
+            let internalWire = data.wiring.indexOf(indexToChar(inputPos));
+            let outputPos = mod(internalWire - offset, 26);
+            return outputPos;
+        }
+
+        function reflector(charIndex) {
+            return charToIndex(REFLECTOR_B[charIndex]);
+        }
+
+        function stepRotors() {
+            const right = currentRotors[2];
+            const middle = currentRotors[1];
+            const left = currentRotors[0];
+            
+            const rightNotch = ROTORS[right.type].notch === indexToChar(right.pos);
+            const middleNotch = ROTORS[middle.type].notch === indexToChar(middle.pos);
+
+            let rotateRight = true;
+            let rotateMiddle = false;
+            let rotateLeft = false;
+
+            if (middleNotch) {
+                rotateMiddle = true;
+                rotateLeft = true;
+            } else if (rightNotch) {
+                rotateMiddle = true;
+            }
+
+            if (rotateRight) right.pos = (right.pos + 1) % 26;
+            if (rotateMiddle) middle.pos = (middle.pos + 1) % 26;
+            if (rotateLeft) left.pos = (left.pos + 1) % 26;
+            
+            updateUI();
+        }
+
+        function encryptChar(inputChar) {
+            stepRotors();
+            let c = charToIndex(inputChar);
+            c = plugboardSwap(c);
+            c = rotorForward(2, c);
+            c = rotorForward(1, c);
+            c = rotorForward(0, c);
+            c = reflector(c);
+            c = rotorInverse(0, c);
+            c = rotorInverse(1, c);
+            c = rotorInverse(2, c);
+            c = plugboardSwap(c);
+            return indexToChar(c);
+        }
+
+        // --- HISTORY & STATE MANAGEMENT ---
+
+        function captureSettings() {
+            // Deep copy rotors to avoid reference issues
+            return {
+                rotors: JSON.parse(JSON.stringify(currentRotors)),
+                plugboard: document.getElementById('plugboard-input').value
+            };
+        }
+
+        function saveMessage() {
+            if (outputString.length === 0) return;
+
+            // If we started typing, we have a snapshot. If not, take one now (edge case)
+            if (!startSettingsSnapshot) {
+                startSettingsSnapshot = captureSettings();
+            }
+
+            const entry = {
+                id: Date.now(),
+                text: outputString,
+                settings: startSettingsSnapshot
+            };
+
+            messageHistory.unshift(entry);
+            renderHistory();
+            clearText(); // Reset for next message
+        }
+
+        function restoreSettings(id) {
+            const entry = messageHistory.find(e => e.id === id);
+            if (!entry) return;
+
+            // Restore Rotors
+            currentRotors = JSON.parse(JSON.stringify(entry.settings.rotors));
+            
+            // Restore Plugboard
+            const plugInput = document.getElementById('plugboard-input');
+            plugInput.value = entry.settings.plugboard;
+            validatePlugboard(plugInput); // Re-run validation logic to populate Map
+
+            // Update UI elements
+            [0,1,2].forEach(i => {
+                document.getElementById(`rotor-type-${i}`).value = currentRotors[i].type;
+                document.getElementById(`ring-setting-${i}`).value = currentRotors[i].ring + 1;
+            });
+            
+            updateUI();
+            
+            // Clear current text so user can start typing immediately
+            clearText();
+        }
+
+        function deleteHistory(id, event) {
+            event.stopPropagation();
+            messageHistory = messageHistory.filter(e => e.id !== id);
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-container');
+            container.innerHTML = '';
+            
+            if (messageHistory.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-neutral-600 text-sm mt-10 italic">
+                        No saved messages.<br>Type and press Enter to save.
+                    </div>
+                `;
+                return;
+            }
+
+            messageHistory.forEach(entry => {
+                // Format settings string
+                const rotorsStr = `${entry.settings.rotors[0].type}-${entry.settings.rotors[1].type}-${entry.settings.rotors[2].type}`;
+                const ringsStr = `${entry.settings.rotors[0].ring+1}.${entry.settings.rotors[1].ring+1}.${entry.settings.rotors[2].ring+1}`;
+                const posStr = `${indexToChar(entry.settings.rotors[0].pos)}${indexToChar(entry.settings.rotors[1].pos)}${indexToChar(entry.settings.rotors[2].pos)}`;
+                
+                const item = document.createElement('div');
+                item.className = "bg-neutral-700/50 rounded p-3 border border-neutral-600 hover:border-amber-500 cursor-pointer transition group relative";
+                item.onclick = () => restoreSettings(entry.id);
+                
+                item.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="text-xs text-amber-500 font-bold uppercase tracking-wider">Start Settings</div>
+                        <button onclick="deleteHistory(${entry.id}, event)" class="text-neutral-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition px-1">✕</button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1 text-xs text-neutral-400 font-mono mb-2 bg-neutral-800/50 p-1 rounded">
+                        <div class="text-center"><span class="block text-neutral-600 text-[10px]">ROTOR</span>${rotorsStr}</div>
+                        <div class="text-center"><span class="block text-neutral-600 text-[10px]">RING</span>${ringsStr}</div>
+                        <div class="text-center"><span class="block text-neutral-600 text-[10px]">POS</span><span class="text-white font-bold">${posStr}</span></div>
+                    </div>
+                    <div class="text-neutral-300 font-mono text-sm break-all leading-relaxed border-t border-neutral-600 pt-2">
+                        ${entry.text}
+                    </div>
+                    <div class="mt-2 text-xs text-center text-amber-500/0 group-hover:text-amber-500/100 transition font-bold">
+                        CLICK TO RESTORE & DECRYPT
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        // --- UI HANDLERS ---
+
+        function handleInput(char) {
+            // If this is the first character of a new message, capture the settings BEFORE they change
+            if (!isTypingMessage) {
+                startSettingsSnapshot = captureSettings();
+                isTypingMessage = true;
+            }
+
+            const encrypted = encryptChar(char);
+            lightUpLamp(encrypted);
+            appendOutput(encrypted);
+        }
+
+        function lightUpLamp(char) {
+            document.querySelectorAll('.lamp').forEach(l => l.classList.remove('active'));
+            const lamp = document.getElementById(`lamp-${char}`);
+            if (lamp) {
+                lamp.classList.add('active');
+                setTimeout(() => lamp.classList.remove('active'), 800);
+            }
+        }
+
+        function appendOutput(char) {
+            const outDiv = document.getElementById('output-text');
+            if (outputString === "") outDiv.innerHTML = "";
+            outputString += char;
+            let formatted = outputString.replace(/(.{4})/g, '$1 ').trim();
+            outDiv.textContent = formatted;
+            outDiv.scrollTop = outDiv.scrollHeight;
+        }
+
+        function adjustRotor(index, delta) {
+            const rotor = currentRotors[index];
+            rotor.pos = mod(rotor.pos + delta, 26);
+            updateUI();
+            
+            // If user adjusts rotors manually, we are no longer in the middle of a valid message sequence
+            // Reset the "isTyping" state so next keypress is treated as a new start point
+            if (isTypingMessage && outputString.length > 0) {
+                 // Optional: Could warn user they broke the sequence
+            }
+            // Ideally, changing settings mid-typing invalidates the "Start Settings" for the whole string.
+            // We'll just reset the typing flag effectively starting a "new" segment, 
+            // but usually users set settings -> type.
+             isTypingMessage = false;
+        }
+
+        function updateUI() {
+            for(let i=0; i<3; i++) {
+                document.getElementById(`rotor-disp-${i}`).textContent = indexToChar(currentRotors[i].pos);
+            }
+        }
+        
+        function bindSettingsListeners() {
+            [0,1,2].forEach(i => {
+                document.getElementById(`rotor-type-${i}`).addEventListener('change', (e) => {
+                    currentRotors[i].type = e.target.value;
+                    isTypingMessage = false; // Config changed
+                });
+                
+                document.getElementById(`ring-setting-${i}`).addEventListener('change', (e) => {
+                    let val = parseInt(e.target.value);
+                    if (val < 1) val = 1; 
+                    if (val > 26) val = 26;
+                    currentRotors[i].ring = val - 1;
+                    isTypingMessage = false; // Config changed
+                });
+            });
+        }
+
+        function validatePlugboard(input) {
+            const val = input.value.toUpperCase().replace(/[^A-Z ]/g, '');
+            input.value = val;
+            
+            const pairs = val.trim().split(/\s+/);
+            const errorDiv = document.getElementById('plugboard-error');
+            const usedChars = new Set();
+            
+            plugboard.clear();
+            let hasError = false;
+
+            pairs.forEach(pair => {
+                if (pair.length === 0) return;
+                if (pair.length !== 2) {
+                    if (pair.length === 1 && pairs.indexOf(pair) === pairs.length -1) {
+                        // Typing last char, ignore
+                    } else {
+                        hasError = true;
+                        errorDiv.textContent = "Incomplete: " + pair;
+                    }
+                    return;
+                }
+                
+                const a = pair[0];
+                const b = pair[1];
+
+                if (usedChars.has(a) || usedChars.has(b)) {
+                    hasError = true;
+                    errorDiv.textContent = "Duplicate: " + (usedChars.has(a) ? a : b);
+                    return;
+                }
+                
+                if (a === b) {
+                    hasError = true;
+                    errorDiv.textContent = "Self-plug: " + a;
+                    return;
+                }
+
+                usedChars.add(a);
+                usedChars.add(b);
+                plugboard.set(a, b);
+                plugboard.set(b, a);
+            });
+
+            if (!hasError) errorDiv.textContent = "";
+            isTypingMessage = false; // Config changed
+        }
+
+        function resetMachine() {
+            currentRotors.forEach(r => r.pos = 0);
+            updateUI();
+            isTypingMessage = false;
+        }
+
+        function clearText() {
+            outputString = "";
+            document.getElementById('output-text').innerHTML = '<span class="text-neutral-600 italic text-sm">// Encrypted output...</span>';
+            isTypingMessage = false;
+        }
+
+        // --- START ---
+        bindSettingsListeners();
+        [0,1,2].forEach(i => {
+            currentRotors[i].ring = parseInt(document.getElementById(`ring-setting-${i}`).value) - 1;
+            currentRotors[i].type = document.getElementById(`rotor-type-${i}`).value;
+        });
+        init();
+
+    </script>
+</body>
+</html>
